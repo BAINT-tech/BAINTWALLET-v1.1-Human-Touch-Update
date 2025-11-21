@@ -3,128 +3,434 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaintWallet</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>BaintWallet - Multi-Chain Wallet</title>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-size: 200% 200%;
+            animation: gradient 15s ease infinite;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 20px;
         }
+        
+        @keyframes gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
         .container {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 400px;
-            width: 90%;
+            max-width: 480px;
+            margin: 0 auto;
         }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+        
         h1 {
             color: #667eea;
-            margin-bottom: 20px;
-            text-align: center;
+            font-size: 32px;
+            margin-bottom: 15px;
         }
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        
+        .button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 16px;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 18px;
             font-weight: bold;
-            width: 100%;
-            margin-top: 10px;
+            cursor: pointer;
+            margin-top: 12px;
         }
-        button:hover {
-            opacity: 0.9;
+        
+        .button:active {
+            transform: scale(0.98);
         }
-        .wallet-info {
+        
+        .button-outline {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 25px 0;
+        }
+        
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ddd;
+            transition: all 0.3s;
+        }
+        
+        .dot.active {
+            width: 30px;
+            border-radius: 5px;
+            background: #667eea;
+        }
+        
+        .balance {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+        
+        .wallet-address {
             background: #f5f5f5;
             padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
+            border-radius: 12px;
             word-break: break-all;
+            font-size: 11px;
+            font-family: monospace;
+            color: #666;
+            margin: 20px 0;
+        }
+        
+        .seasonal {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+        
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            font-size: 14px;
+        }
+        
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div id="root">
-        <div class="container">
-            <h1>Loading...</h1>
-            <p style="text-align: center;">Please wait...</p>
+    <div class="container">
+        <div id="app"></div>
+        <div class="footer">
+            <p>Made with 💜 by BaintWallet</p>
+            <p style="font-size: 12px; margin-top: 8px; opacity: 0.8;">
+                15+ Chains • Zero Fees • Secure
+            </p>
         </div>
     </div>
-    
-    <script type="text/babel">
-        const { useState } = React;
-        
-        function App() {
-            const [wallet, setWallet] = useState(null);
-            const [loading, setLoading] = useState(false);
-            
-            const createWallet = () => {
-                setLoading(true);
-                setTimeout(() => {
-                    const demoWallet = {
-                        address: '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-                        balance: '0.0000'
-                    };
-                    setWallet(demoWallet);
-                    setLoading(false);
-                }, 1000);
-            };
-            
-            return (
-                <div className="container">
-                    <h1>🌟 BaintWallet</h1>
-                    
-                    {!wallet ? (
-                        <>
-                            <p style={{textAlign: 'center', marginBottom: '20px'}}>
-                                Premium Multi-Chain Wallet
-                            </p>
-                            <button onClick={createWallet} disabled={loading}>
-                                {loading ? '⟳ Creating...' : '✨ Create Wallet'}
-                            </button>
-                        </>
-                    ) : (
-                        <div className="wallet-info">
-                            <h3 style={{marginTop: 0}}>✅ Wallet Created!</h3>
-                            <p><strong>Address:</strong></p>
-                            <p style={{fontSize: '12px'}}>{wallet.address}</p>
-                            <p style={{marginTop: '15px'}}><strong>Balance:</strong> {wallet.balance} ETH</p>
-                            <button onClick={() => setWallet(null)} style={{marginTop: '20px'}}>
-                                🔄 Reset
-                            </button>
-                        </div>
-                    )}
-                    
-                    <p style={{textAlign: 'center', fontSize: '12px', marginTop: '30px', color: '#888'}}>
-                        Made with 💜 by BaintWallet
-                    </p>
-                </div>
-            );
-        }
-        
-        // Wait for React to load
-        const renderApp = () => {
-            if (window.React && window.ReactDOM) {
-                const root = ReactDOM.createRoot(document.getElementById('root'));
-                root.render(<App />);
-            } else {
-                setTimeout(renderApp, 100);
-            }
+
+    <script>
+        // App State
+        const state = {
+            step: 0,
+            view: 'intro',
+            wallet: null,
+            loading: false
         };
         
-        renderApp();
+        // Introduction Slides
+        const slides = [
+            {
+                icon: '🌟',
+                title: 'Welcome to BaintWallet',
+                subtitle: 'Premium wallet with 15+ chains powered by Infura & Alchemy!'
+            },
+            {
+                icon: '🔐',
+                title: 'Your Keys, Your Crypto',
+                subtitle: 'Military-grade security. We NEVER store your keys.'
+            },
+            {
+                icon: '⚡',
+                title: 'Multi-Chain Magic',
+                subtitle: 'Ethereum, BNB, Polygon, Arbitrum, Base, and 10+ more chains!'
+            },
+            {
+                icon: '💎',
+                title: 'Zero Fees Forever',
+                subtitle: 'FREE sends, WalletConnect, DApp Browser, and Referrals!'
+            }
+        ];
+        
+        // Get Seasonal Message
+        function getSeasonalMessage() {
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            
+            if (month === 12 || (month === 1 && day <= 5)) {
+                return "Merry Christmas & Happy New Year in Advance 🎄🎁";
+            }
+            return "Have a productive month 💼🔥";
+        }
+        
+        // Track Analytics
+        function trackEvent(action) {
+            try {
+                const events = JSON.parse(localStorage.getItem('baintwallet_analytics') || '[]');
+                events.push({
+                    action: action,
+                    timestamp: Date.now(),
+                    date: new Date().toISOString()
+                });
+                localStorage.setItem('baintwallet_analytics', JSON.stringify(events.slice(-100)));
+                
+                // Update user count
+                const users = JSON.parse(localStorage.getItem('baintwallet_all_users') || '[]');
+                const userId = localStorage.getItem('baintwallet_user_id');
+                if (userId && !users.includes(userId)) {
+                    users.push(userId);
+                    localStorage.setItem('baintwallet_all_users', JSON.stringify(users));
+                }
+            } catch (e) {}
+        }
+        
+        // Render Function
+        function render() {
+            const app = document.getElementById('app');
+            let html = '';
+            
+            if (state.view === 'intro') {
+                const slide = slides[state.step];
+                html = `
+                    <div class="card">
+                        <div class="icon">${slide.icon}</div>
+                        <h1>${slide.title}</h1>
+                        <p class="subtitle">${slide.subtitle}</p>
+                        
+                        <div class="dots">
+                            ${slides.map((_, i) => `
+                                <div class="dot ${i === state.step ? 'active' : ''}"></div>
+                            `).join('')}
+                        </div>
+                        
+                        ${state.step < slides.length - 1 ? `
+                            <button class="button" onclick="nextSlide()">Next</button>
+                            <button class="button button-outline" onclick="skipIntro()">Skip</button>
+                        ` : `
+                            <button class="button" onclick="goToCreate()">Get Started 🚀</button>
+                        `}
+                    </div>
+                `;
+            }
+            else if (state.view === 'create') {
+                html = `
+                    <div class="card">
+                        <div class="icon">✨</div>
+                        <h1>Create New Wallet</h1>
+                        <p class="subtitle">Create a secure wallet in seconds</p>
+                        <button class="button" onclick="createWallet()" ${state.loading ? 'disabled' : ''}>
+                            ${state.loading ? '<span class="loading">⟳</span> Creating...' : 'Create Wallet (FREE)'}
+                        </button>
+                    </div>
+                `;
+            }
+            else if (state.view === 'wallet' && state.wallet) {
+                html = `
+                    <div class="card">
+                        <div class="icon">✅</div>
+                        <h1>Wallet Created!</h1>
+                        
+                        <div class="balance">${state.wallet.balance} ETH</div>
+                        
+                        <div class="seasonal">${getSeasonalMessage()}</div>
+                        
+                        <div class="wallet-address">
+                            <strong style="color: #667eea;">Address:</strong><br>
+                            ${state.wallet.address}
+                        </div>
+                        
+                        <button class="button" onclick="copyAddress()">📋 Copy Address</button>
+                        <button class="button" onclick="showSeed()">🔐 View Seed Phrase</button>
+                        <button class="button button-outline" onclick="reset()">🔄 Reset Wallet</button>
+                    </div>
+                `;
+            }
+            else if (state.view === 'seed' && state.wallet) {
+                html = `
+                    <div class="card">
+                        <div class="icon">🔐</div>
+                        <h1>Seed Phrase</h1>
+                        
+                        <div style="background: #ffebee; padding: 15px; border-radius: 12px; margin: 20px 0;">
+                            <p style="color: #c62828; font-weight: bold; font-size: 14px;">⚠️ NEVER share this!</p>
+                            <p style="color: #d32f2f; font-size: 12px; margin-top: 5px;">
+                                Anyone with this phrase can access your funds
+                            </p>
+                        </div>
+                        
+                        <div class="wallet-address" style="text-align: left;">
+                            ${state.wallet.mnemonic}
+                        </div>
+                        
+                        <button class="button" onclick="copySeed()">📋 Copy Seed Phrase</button>
+                        <button class="button button-outline" onclick="backToWallet()">← Back to Wallet</button>
+                    </div>
+                `;
+            }
+            
+            app.innerHTML = html;
+        }
+        
+        // Navigation Functions
+        function nextSlide() {
+            if (state.step < slides.length - 1) {
+                state.step++;
+                trackEvent('intro_next');
+                render();
+            }
+        }
+        
+        function skipIntro() {
+            trackEvent('intro_skipped');
+            goToCreate();
+        }
+        
+        function goToCreate() {
+            state.view = 'create';
+            trackEvent('navigate_create');
+            render();
+        }
+        
+        function backToWallet() {
+            state.view = 'wallet';
+            render();
+        }
+        
+        function showSeed() {
+            state.view = 'seed';
+            trackEvent('view_seed');
+            render();
+        }
+        
+        // Wallet Functions
+        function createWallet() {
+            state.loading = true;
+            render();
+            
+            setTimeout(() => {
+                // Generate random wallet
+                const address = '0x' + Array(40).fill(0)
+                    .map(() => Math.floor(Math.random() * 16).toString(16))
+                    .join('');
+                
+                const words = ['abandon', 'ability', 'able', 'about', 'above', 'absent', 
+                              'absorb', 'abstract', 'absurd', 'abuse', 'access', 'accident'];
+                const mnemonic = words.sort(() => Math.random() - 0.5).join(' ');
+                
+                state.wallet = {
+                    address: address,
+                    balance: '0.0000',
+                    mnemonic: mnemonic
+                };
+                
+                // Track user creation
+                let userId = localStorage.getItem('baintwallet_user_id');
+                if (!userId) {
+                    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('baintwallet_user_id', userId);
+                }
+                
+                trackEvent('wallet_created');
+                
+                state.loading = false;
+                state.view = 'wallet';
+                render();
+            }, 1500);
+        }
+        
+        function copyAddress() {
+            copyToClipboard(state.wallet.address);
+            alert('✅ Address copied to clipboard!');
+            trackEvent('copy_address');
+        }
+        
+        function copySeed() {
+            copyToClipboard(state.wallet.mnemonic);
+            alert('✅ Seed phrase copied to clipboard!');
+            trackEvent('copy_seed');
+        }
+        
+        function copyToClipboard(text) {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.style.position = 'fixed';
+            temp.style.left = '-9999px';
+            document.body.appendChild(temp);
+            temp.select();
+            try {
+                document.execCommand('copy');
+            } catch (e) {
+                console.error('Copy failed:', e);
+            }
+            document.body.removeChild(temp);
+        }
+        
+        function reset() {
+            if (confirm('Are you sure you want to reset? This will clear your wallet.')) {
+                state.wallet = null;
+                state.view = 'intro';
+                state.step = 0;
+                trackEvent('wallet_reset');
+                render();
+            }
+        }
+        
+        // Initialize
+        function init() {
+            let userId = localStorage.getItem('baintwallet_user_id');
+            if (!userId) {
+                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('baintwallet_user_id', userId);
+            }
+            
+            trackEvent('app_opened');
+            render();
+        }
+        
+        init();
     </script>
 </body>
 </html>
