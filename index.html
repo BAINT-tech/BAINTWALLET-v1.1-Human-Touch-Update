@@ -3,41 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaintWallet - Premium Multi-Chain Wallet</title>
+    <title>BaintWallet</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
-        * { font-family: 'Poppins', sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
-        body { margin: 0; padding: 0; }
-        .animated-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); background-size: 200% 200%; animation: gradientShift 15s ease infinite; }
-        @keyframes gradientShift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.5); box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37); }
-        .dark .glass-card { background: rgba(20, 20, 40, 0.95); border: 2px solid rgba(139, 92, 246, 0.3); color: #f5f5f5; }
-        .dark { color: #f5f5f5; }
-        .premium-button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s; }
-        .premium-button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4); }
-        .spinner { display: inline-block; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .hover-lift { transition: all 0.3s; }
-        .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(102, 126, 234, 0.3); }
-        .notification-badge { position: absolute; top: -5px; right: -5px; background: linear-gradient(135deg, #ff6b6b, #ee5a6f); color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; }
-        .fade-in { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .mood-badge { position: absolute; top: 10px; right: 10px; padding: 8px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.3); display: flex; align-items: center; gap: 6px; animation: fadeIn 0.5s ease-in; }
-        .mood-selector { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 400px; margin: 0 auto; }
-        .mood-option { padding: 16px; border-radius: 16px; cursor: pointer; transition: all 0.3s; border: 2px solid transparent; text-align: center; }
-        .mood-option:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); }
-        .mood-option.active { border-color: rgba(255, 255, 255, 0.6); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .wallet-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
-    <div id="root"></div>
-    <script src="https://nt-tech.github.io/baintwallet/wallet.js"></script>
+    <div id="root">
+        <div class="container">
+            <h1>Loading...</h1>
+            <p style="text-align: center;">Please wait...</p>
+        </div>
+    </div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        
+        function App() {
+            const [wallet, setWallet] = useState(null);
+            const [loading, setLoading] = useState(false);
+            
+            const createWallet = () => {
+                setLoading(true);
+                setTimeout(() => {
+                    const demoWallet = {
+                        address: '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
+                        balance: '0.0000'
+                    };
+                    setWallet(demoWallet);
+                    setLoading(false);
+                }, 1000);
+            };
+            
+            return (
+                <div className="container">
+                    <h1>🌟 BaintWallet</h1>
+                    
+                    {!wallet ? (
+                        <>
+                            <p style={{textAlign: 'center', marginBottom: '20px'}}>
+                                Premium Multi-Chain Wallet
+                            </p>
+                            <button onClick={createWallet} disabled={loading}>
+                                {loading ? '⟳ Creating...' : '✨ Create Wallet'}
+                            </button>
+                        </>
+                    ) : (
+                        <div className="wallet-info">
+                            <h3 style={{marginTop: 0}}>✅ Wallet Created!</h3>
+                            <p><strong>Address:</strong></p>
+                            <p style={{fontSize: '12px'}}>{wallet.address}</p>
+                            <p style={{marginTop: '15px'}}><strong>Balance:</strong> {wallet.balance} ETH</p>
+                            <button onClick={() => setWallet(null)} style={{marginTop: '20px'}}>
+                                🔄 Reset
+                            </button>
+                        </div>
+                    )}
+                    
+                    <p style={{textAlign: 'center', fontSize: '12px', marginTop: '30px', color: '#888'}}>
+                        Made with 💜 by BaintWallet
+                    </p>
+                </div>
+            );
+        }
+        
+        // Wait for React to load
+        const renderApp = () => {
+            if (window.React && window.ReactDOM) {
+                const root = ReactDOM.createRoot(document.getElementById('root'));
+                root.render(<App />);
+            } else {
+                setTimeout(renderApp, 100);
+            }
+        };
+        
+        renderApp();
+    </script>
 </body>
 </html>
