@@ -185,10 +185,12 @@
           const [customNetworks, setCustomNetworks] = useState([]);
           const [showAddNetwork, setShowAddNetwork] = useState(false);
           const [newNetwork, setNewNetwork] = useState({ name: '', rpc: '', chainId: '', symbol: '', explorer: '' });
-          
-          // NEW: Mood system state
           const [currentMood, setCurrentMood] = useState(null);
           const [showMoodSelector, setShowMoodSelector] = useState(false);
+          const [receivedTxs, setReceivedTxs] = useState([]);
+          const [pendingApproval, setPendingApproval] = useState(null);
+          const [totalUsers, setTotalUsers] = useState(0);
+          const [showStats, setShowStats] = useState(false);
           
           const qrRef = useRef(null);
 
@@ -196,7 +198,7 @@
           const INFURA_KEY = '2eb003d772d345c48214cad05878e67c';
           const ALCHEMY_KEY = 'RV7R38aklgHvDsNjslY6Xo9ptfJ--r2t';
 
-          // NEW: Mood options
+          // MOOD OPTIONS
           const moods = [
             { id: 'coffee', name: 'Coffee Mode', emoji: '☕', color: 'bg-amber-600' },
             { id: 'date', name: 'Date Mode', emoji: '🌹', color: 'bg-pink-500' },
@@ -206,13 +208,12 @@
             { id: 'meditation', name: 'Meditation', emoji: '🧘', color: 'bg-green-500' }
           ];
 
-          // NEW: Get seasonal message function
+          // SEASONAL MESSAGE
           const getSeasonalMessage = () => {
             const now = new Date();
-            const month = now.getMonth() + 1; // 1-12
+            const month = now.getMonth() + 1;
             const day = now.getDate();
 
-            // December 1st to January 5th
             if ((month === 12) || (month === 1 && day <= 5)) {
               return "Merry Christmas & Happy New Year in Advance 🎄🎁";
             }
@@ -220,7 +221,41 @@
             return "Have a productive month 💼🔥";
           };
 
-          // ALL 15 CHAINS WITH INFURA & ALCHEMY
+          // ANALYTICS FUNCTIONS
+          const trackEvent = (action, data = {}) => {
+            try {
+              const events = JSON.parse(localStorage.getItem('baintwallet_analytics') || '[]');
+              events.push({
+                userId,
+                action,
+                data,
+                timestamp: Date.now(),
+                date: new Date().toISOString()
+              });
+              localStorage.setItem('baintwallet_analytics', JSON.stringify(events.slice(-100)));
+            } catch (e) {
+              console.error('Analytics error:', e);
+            }
+          };
+
+          const getAnalytics = () => {
+            try {
+              const events = JSON.parse(localStorage.getItem('baintwallet_analytics') || '[]');
+              const users = JSON.parse(localStorage.getItem('baintwallet_all_users') || '[]');
+              
+              return {
+                totalEvents: events.length,
+                totalUsers: users.length,
+                walletCreated: events.filter(e => e.action === 'wallet_created').length,
+                transactions: events.filter(e => e.action.includes('transaction')).length,
+                lastActive: events.length > 0 ? new Date(events[events.length - 1].timestamp).toLocaleString() : 'N/A'
+              };
+            } catch (e) {
+              return { totalEvents: 0, totalUsers: 0, walletCreated: 0, transactions: 0, lastActive: 'N/A' };
+            }
+          };
+
+          // ALL 15 CHAINS
           const chains = {
             ETH: {
               name: 'Ethereum', symbol: 'ETH', icon: '⟠', color: 'from-blue-500 to-purple-600',
@@ -567,18 +602,19 @@
             return (parseFloat(wallet.balance) * prices[chains[chain].symbol]).toFixed(2); 
           };
 
-          // NEW: Mood functions
           const selectMood = (moodId) => {
             if (currentMood === moodId) {
               setCurrentMood(null);
               localStorage.removeItem('baintwallet_mood');
               showMsg('✅ Mood cleared');
+              trackEvent('mood_cleared', { mood: moodId });
             } else {
               setCurrentMood(moodId);
               localStorage.setItem('baintwallet_mood', moodId);
               const mood = moods.find(m => m.id === moodId);
               showMsg(`${mood.emoji} ${mood.name} activated!`);
               addNotification(mood.emoji, 'Mood Set', mood.name);
+              trackEvent('mood_set', { mood: moodId });
             }
             setShowMoodSelector(false);
           };
@@ -588,88 +624,137 @@
             return moods.find(m => m.id === currentMood);
           };
 
+          const checkReceivedTransactions = async () => {
+            if (!wallet || isTestnet) return;
+            
+            try {
+              const provider = await getProviderWithRetry();
+              const latestBlock = await provider.getBlockNumber();
+              const fromBlock = Math.max(0, latestBlock - 1000);
+              
+              const logs = await provider.getLogs({
+                address: null,
+                fromBlock: fromBlock,
+                toBlock: 'latest'
+              });
+              
+              const received = [];
+              for (const log of logs.slice(0, 10)) {
+                try {
+                  const tx = await provider.getTransaction(log.transactionHash);
+                  if (tx && tx.to && tx.to.toLowerCase() === wallet.address.toLowerCase() && tx.value.gt(0)) {
+                    received.push({
+                      hash: tx.hash,
+                      from: tx.from,
+                      amount: ethers.utils.formatEther(tx.value),
+                      time: new Date().toLocaleString(),
+                      status: 'confirmed',
+                      type: 'receive',
+                      chain: chain,
+                      symbol: chains[chain].symbol
+                    });
+                  }
+                } catch (e) {
+                  continue;
+                }
+              }
+              
+              if (received.length > receivedTxs.length) {
+                addNotification('📥', 'Received', `${received[0].amount} ${chains[chain].symbol}`);
+                trackEvent('transaction_received', { amount: received[0].amount, chain });
+              }
+              
+              setReceivedTxs(received);
+            } catch (e) {
+              console.error('Error checking received transactions:', e);
+            }
+          };
+
           // API FUNCTIONS
           const fetchPrices = async () => {
             try {
               const response = await fetch(
                 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,matic-network,avalanche-2,fantom,mantle,tether,usd-coin&vs_currencies=usd'
               );
-              const data = await response.json();
-              setPrices({ 
-                ETH: data.ethereum?.usd || 2500,
-                BNB: data.binancecoin?.usd || 300,
-                MATIC: data['matic-network']?.usd || 0.8,
-                AVAX: data['avalanche-2']?.usd || 25,
-                FTM: data.fantom?.usd || 0.4,
-                MNT: data.mantle?.usd || 0.8,
-                USDT: 1.0,
-                USDC: 1.0,
-                APE: 1.2
-              });
-            } catch (e) { 
-              setPrices({ ETH: 2500, BNB: 300, MATIC: 0.8, AVAX: 25, FTM: 0.4, MNT: 0.8, USDT: 1.0, USDC: 1.0, APE: 1.2 });
-            }
-          };
-
-          const loadTokenBalances = async () => {
-            if (!wallet || isTestnet) return;
-            
-            setLoadingTokens(true);
-            const tokenAddresses = TOKEN_ADDRESSES[chain] || {};
-            const tokenList = [];
-            
+              const data = await response.json();setPrices({
+ETH: data.ethereum?.usd || 2500,
+BNB: data.binancecoin?.usd || 300,
+MATIC: data['matic-network']?.usd || 0.8,
+AVAX: data['avalanche-2']?.usd || 25,
+FTM: data.fantom?.usd || 0.4,
+MNT: data.mantle?.usd || 0.8,
+USDT: 1.0,
+USDC: 1.0,
+APE: 1.2
+});
+} catch (e) {
+setPrices({ ETH: 2500, BNB: 300, MATIC: 0.8, AVAX: 25, FTM: 0.4, MNT: 0.8, USDT: 1.0, USDC: 1.0, APE: 1.2 });
+}
+};
+const loadTokenBalances = async () => {
+        if (!wallet || isTestnet) return;
+        
+        setLoadingTokens(true);
+        const tokenAddresses = TOKEN_ADDRESSES[chain] || {};
+        const tokenList = [];
+        
+        try {
+          const provider = await getProviderWithRetry();
+          
+          for (const [symbol, address] of Object.entries(tokenAddresses)) {
             try {
-              const provider = await getProviderWithRetry();
+              const contract = new ethers.Contract(address, ERC20_ABI, provider);
+              const [balance, decimals, name] = await Promise.all([
+                contract.balanceOf(wallet.address), 
+                contract.decimals(), 
+                contract.name()
+              ]);
               
-              for (const [symbol, address] of Object.entries(tokenAddresses)) {
-                try {
-                  const contract = new ethers.Contract(address, ERC20_ABI, provider);
-                  const [balance, decimals, name] = await Promise.all([
-                    contract.balanceOf(wallet.address), 
-                    contract.decimals(), 
-                    contract.name()
-                  ]);
-                  
-                  const formattedBalance = ethers.utils.formatUnits(balance, decimals);
-                  
-                  if (parseFloat(formattedBalance) > 0) { 
-                    tokenList.push({ symbol, name, address, balance: formattedBalance, decimals }); 
-                  }
-                } catch (e) { 
-                  console.error(`Error loading ${symbol}:`, e.message); 
-                }
+              const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+              
+              if (parseFloat(formattedBalance) > 0) { 
+                tokenList.push({ symbol, name, address, balance: formattedBalance, decimals }); 
               }
-              
-              setTokens(tokenList);
             } catch (e) { 
-              console.error('Token loading error:', e);
+              console.error(`Error loading ${symbol}:`, e.message); 
             }
-            
-            setLoadingTokens(false);
-          };
+          }
+          
+          setTokens(tokenList);
+        } catch (e) { 
+          console.error('Token loading error:', e);
+        }
+        
+        setLoadingTokens(false);
+      };
 
-          // UPDATED: Enhanced receipt with seasonal message
-          const generateReceipt = (tx) => {
-            try {
-              const { jsPDF } = window.jspdf;
-              const doc = new jsPDF();
-              
-              const seasonalMsg = getSeasonalMessage();
-              
-              doc.setFontSize(24);
-              doc.setTextColor(102, 126, 234);
-              doc.text('BaintWallet', 20, 30);
-              
-              doc.setFontSize(18);
-              doc.setTextColor(0, 0, 0);
-              doc.text('Transaction Receipt', 20, 45);
-              
-              doc.setFontSize(12);
-              doc.text(`Hash: ${tx.hash.substring(0, 20)}..., 20, 65); doc.text(From: ${wallet.address.substring(0, 20)}..., 20, 80); doc.text(To: ${tx.to.substring(0, 20)}..., 20, 95); doc.text(Amount: ${tx.amount} ${tx.symbol}, 20, 110); doc.text(Chain: ${chains[tx.chain].name}, 20, 125); doc.text(Status: ${tx.status}, 20, 140); doc.text(Date: ${tx.time}, 20, 155); doc.text(Platform Fee: FREE`, 20, 170);
-// NEW: Add seasonal message to receipt
+      const generateReceipt = (tx) => {
+        try {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+          
+          const seasonalMsg = getSeasonalMessage();
+          
+          doc.setFontSize(24);
+          doc.setTextColor(102, 126, 234);
+          doc.text('BaintWallet', 20, 30);
+          
+          doc.setFontSize(18);
+          doc.setTextColor(0, 0, 0);
+          doc.text('Transaction Receipt', 20, 45);
+          
+          doc.setFontSize(12);
+          doc.text(`Hash: ${tx.hash.substring(0, 20)}...`, 20, 65);
+          doc.text(`${tx.type === 'receive' ? 'From' : 'To'}: ${(tx.from || tx.to).substring(0, 20)}...`, 20, 80);
+          doc.text(`Amount: ${tx.amount} ${tx.symbol}`, 20, 95);
+          doc.text(`Chain: ${chains[tx.chain].name}`, 20, 110);
+          doc.text(`Status: ${tx.status}`, 20, 125);
+          doc.text(`Date: ${tx.time}`, 20, 140);
+          doc.text(`Platform Fee: FREE`, 20, 155);
+          
           doc.setFontSize(11);
           doc.setTextColor(139, 92, 246);
-          doc.text(seasonalMsg, 20, 195);
+          doc.text(seasonalMsg, 20, 180);
           
           doc.setFontSize(10);
           doc.setTextColor(128, 128, 128);
@@ -678,7 +763,8 @@
           
           doc.save(`receipt-${tx.hash.slice(0, 10)}.pdf`);
           showMsg('✅ Receipt downloaded!');
-          addNotification('📄', 'Receipt', 'PDF saved');
+          addNotification('📄', 'Receipt', 'PDF saved with seasonal message');
+          trackEvent('receipt_generated', { txHash: tx.hash, type: tx.type });
         } catch (e) {
           showMsg('❌ Could not generate receipt');
         }
@@ -701,6 +787,16 @@
           
           showMsg('✅ Wallet created!');
           addNotification('✨', 'Success', 'Wallet ready!');
+          
+          // Track user creation
+          const allUsers = JSON.parse(localStorage.getItem('baintwallet_all_users') || '[]');
+          if (!allUsers.includes(userId)) {
+            allUsers.push(userId);
+            localStorage.setItem('baintwallet_all_users', JSON.stringify(allUsers));
+          }
+          setTotalUsers(allUsers.length);
+          
+          trackEvent('wallet_created', { chain, userId });
           setView('wallet');
           fetchPrices();
         } catch (e) { 
@@ -739,6 +835,15 @@
           
           showMsg('✅ Imported!');
           addNotification('📥', 'Imported', 'Wallet loaded');
+          
+          const allUsers = JSON.parse(localStorage.getItem('baintwallet_all_users') || '[]');
+          if (!allUsers.includes(userId)) {
+            allUsers.push(userId);
+            localStorage.setItem('baintwallet_all_users', JSON.stringify(allUsers));
+          }
+          setTotalUsers(allUsers.length);
+          
+          trackEvent('wallet_imported', { chain, userId });
           setSeedInput('');
           setView('wallet');
           fetchPrices();
@@ -756,9 +861,13 @@
           const balance = await provider.getBalance(wallet.address);
           setWallet({...wallet, balance: ethers.utils.formatEther(balance)});
           fetchPrices();
-          if (!isTestnet) loadTokenBalances();
+          if (!isTestnet) {
+            loadTokenBalances();
+            checkReceivedTransactions();
+          }
           showMsg('✅ Refreshed!');
           addNotification('🔄', 'Updated', 'Balance updated');
+          trackEvent('balance_refreshed', { chain });
         } catch (e) { 
           showMsg('⚠️ Network error');
         }
@@ -794,15 +903,18 @@
             amount: sendAmount, 
             time: new Date().toLocaleString(), 
             status: 'pending',
-            type: 'native', 
+            type: 'send', 
             chain: chain, 
             symbol: chains[chain].symbol 
           }, ...txs]);
+          
+          trackEvent('transaction_sent', { amount: sendAmount, chain, symbol: chains[chain].symbol });
           
           tx.wait().then(() => { 
             setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t)); 
             showMsg('✅ Confirmed!'); 
             addNotification('✅', 'Confirmed', 'Transaction confirmed');
+            trackEvent('transaction_confirmed', { txHash: tx.hash });
             refreshBalance(); 
           });
           
@@ -811,6 +923,7 @@
           setView('wallet');
         } catch (e) { 
           showMsg('❌ ' + (e.reason || e.message)); 
+          trackEvent('transaction_failed', { error: e.message });
         }
         setLoading(false);
       };
@@ -848,6 +961,8 @@
             symbol: selectedToken.symbol 
           }, ...txs]);
           
+          trackEvent('token_sent', { amount: sendTokenAmount, token: selectedToken.symbol, chain });
+          
           tx.wait().then(() => { 
             setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t)); 
             showMsg('✅ Confirmed!'); 
@@ -872,6 +987,7 @@
         setWcConnected(true);
         showMsg('✅ WalletConnect Connected!');
         addNotification('🔗', 'WalletConnect', 'Connected to DApp');
+        trackEvent('walletconnect_connected', { uri: wcUri.substring(0, 20) });
       };
 
       const disconnectWalletConnect = () => {
@@ -879,6 +995,7 @@
         setWcUri('');
         showMsg('✅ Disconnected');
         addNotification('🔌', 'Disconnected', 'Session ended');
+        trackEvent('walletconnect_disconnected');
       };
 
       const addCustomNetwork = async () => {
@@ -915,6 +1032,7 @@
           
           showMsg('✅ Network added!');
           addNotification('🌐', 'Network Added', newNetwork.name);
+          trackEvent('custom_network_added', { name: newNetwork.name, chainId: newNetwork.chainId });
           
           setNewNetwork({ name: '', rpc: '', chainId: '', symbol: '', explorer: '' });
           setShowAddNetwork(false);
@@ -929,11 +1047,13 @@
           setIntroStep(introStep + 1); 
         } else { 
           setView('create'); 
+          trackEvent('intro_completed');
         } 
       };
 
       const skipIntro = () => { 
         setView('create'); 
+        trackEvent('intro_skipped');
       };
 
       // EFFECTS
@@ -957,10 +1077,36 @@
           }
         }
 
-        // NEW: Load saved mood
         const savedMood = localStorage.getItem('baintwallet_mood');
         if (savedMood) {
           setCurrentMood(savedMood);
+        }
+
+        const allUsers = JSON.parse(localStorage.getItem('baintwallet_all_users') || '[]');
+        setTotalUsers(allUsers.length);
+
+        trackEvent('app_opened');
+
+        // Deep linking support
+        const params = new URLSearchParams(window.location.search);
+        const action = params.get('action');
+        const address = params.get('address');
+        const amount = params.get('amount');
+        
+        if (action === 'send' && address && wallet) {
+          setSendTo(address);
+          if (amount) setSendAmount(amount);
+          setView('send');
+          showMsg('📱 Deep link detected');
+          trackEvent('deep_link_opened', { action: 'send' });
+        }
+        
+        const wcUriParam = params.get('uri');
+        if (wcUriParam && wallet) {
+          setWcUri(decodeURIComponent(wcUriParam));
+          setView('walletconnect');
+          showMsg('🔗 WalletConnect link detected');
+          trackEvent('deep_link_opened', { action: 'walletconnect' });
         }
       }, []);
 
@@ -988,6 +1134,9 @@
       useEffect(() => {
         if (wallet && !isTestnet) {
           loadTokenBalances();
+          checkReceivedTransactions();
+          const interval = setInterval(checkReceivedTransactions, 30000);
+          return () => clearInterval(interval);
         }
       }, [wallet, chain, isTestnet]);
 
@@ -1003,6 +1152,13 @@
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-white">BaintWallet</h1>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowStats(!showStats)}
+                    className="p-3 glass-card rounded-xl transition hover:shadow-lg"
+                  >
+                    <span className="text-2xl">📊</span>
+                  </button>
+
                   <button
                     onClick={() => setShowNotifications(!showNotifications)}
                     className="relative p-3 glass-card rounded-xl transition hover:shadow-lg"
@@ -1023,6 +1179,40 @@
                   </button>
                 </div>
               </div>
+
+              {/* STATS PANEL */}
+              {showStats && (
+                <div className="glass-card rounded-2xl p-6 mb-4 fade-in">
+                  <h3 className="text-xl font-bold mb-4">📊 Analytics Dashboard</h3>
+                  {(() => {
+                    const stats = getAnalytics();
+                    return (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-4 text-white">
+                          <p className="text-3xl font-bold">{stats.totalUsers}</p>
+                          <p className="text-sm opacity-90">Total Users</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-green-500 to-teal-600 rounded-xl p-4 text-white">
+                          <p className="text-3xl font-bold">{stats.walletCreated}</p>
+                          <p className="text-sm opacity-90">Wallets Created</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-orange-500 to-red-600 rounded-xl p-4 text-white">
+                          <p className="text-3xl font-bold">{stats.transactions}</p>
+                          <p className="text-sm opacity-90">Transactions</p>
+                        </div>
+                        <div className="bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl p-4 text-white">
+                          <p className="text-3xl font-bold">{stats.totalEvents}</p>
+                          <p className="text-sm opacity-90">Total Events</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <div className="mt-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Last Active: {getAnalytics().lastActive}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Your ID: {userId}</p>
+                  </div>
+                </div>
+              )}
 
               {/* NOTIFICATIONS PANEL */}
               {showNotifications && (
@@ -1182,7 +1372,6 @@
 
                   {/* Balance Card with Mood Badge */}
                   <div className={`glass-card rounded-3xl p-8 hover-lift bg-gradient-to-br ${allChains[chain].color} relative`}>
-                    {/* NEW: Mood Badge */}
                     {getCurrentMoodData() && (
                       <div className={`mood-badge ${getCurrentMoodData().color} text-white`}>
                         <span>{getCurrentMoodData().emoji}</span>
@@ -1190,14 +1379,13 @@
                       </div>
                     )}
                     
-                    <p className="text-white/80 mb-2 font-semibold">Total Balance</p>
-                    <h2 className="text-5xl font-bold text-white mb-2">
-                      {parseFloat(wallet.balance).toFixed(4)} {allChains[chain].symbol}
-                    </h2>
-                    <p className="text-white/90 text-xl font-semibold">≈ ${getUsdValue()} USD</p>
-                    
-                    {/* NEW: Seasonal Message */}
-                    <div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-3 text-white text-sm text-center">
+                    <p className="text-white/80 mb-2 font-semibold">Total Balance</p>�
+{parseFloat(wallet.balance).toFixed(4)} {allChains[chain].symbol} 
+
+≈ ${getUsdValue()} USD
+
+
+<div className="mt-4 bg-white/20 backdrop-blur rounded-xl p-3 text-white text-sm text-center">
                       {getSeasonalMessage()}
                     </div>
                     
@@ -1222,7 +1410,7 @@
                     </div>
                   </div>
 
-                  {/* Action Buttons with Mood Selector */}
+                  {/* Action Buttons */}
                   <div className="grid grid-cols-3 gap-3">
                     <button onClick={() => setView('send')} className="glass-card p-6 rounded-2xl hover-lift text-center transition">
                       <div className="text-4xl mb-2">📤</div>
@@ -1250,7 +1438,7 @@
                     </button>
                   </div>
 
-                  {/* NEW: Mood Selector Button */}
+                  {/* Mood Selector Button */}
                   <button
                     onClick={() => setShowMoodSelector(!showMoodSelector)}
                     className="w-full glass-card p-4 rounded-2xl hover-lift text-center font-semibold transition flex items-center justify-center gap-2"
@@ -1259,7 +1447,7 @@
                     <span>Set Your Mood</span>
                   </button>
 
-                  {/* NEW: Mood Selector Panel */}
+                  {/* Mood Selector Panel */}
                   {showMoodSelector && (
                     <div className="glass-card rounded-2xl p-6 fade-in">
                       <h3 className="text-xl font-bold mb-4 text-center">Choose Your Vibe</h3>
@@ -1286,31 +1474,58 @@
                     </div>
                   )}
 
-                  {/* Recent Transactions with Seasonal Message */}
-                  {txs.length > 0 && (
+                  {/* Combined Transaction History with Receive & Send */}
+                  {(txs.length > 0 || receivedTxs.length > 0) && (
                     <div className="glass-card rounded-2xl p-6">
-                      <h3 className="text-xl font-bold mb-4">Recent Transactions</h3>
+                      <h3 className="text-xl font-bold mb-4">Transaction History</h3>
                       <div className="space-y-3">
-                        {txs.slice(0, 3).map((tx, i) => (
-                          <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                            <div className="flex-1">
-                              <p className="font-semibold">{tx.type === 'token' ? '🪙' : '📤'} {tx.type === 'token' ? 'Token' : 'Sent'}</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{tx.amount} {tx.symbol}</p>
-                              <p className="text-xs text-gray-400">{tx.time}</p>
+                        {[...receivedTxs, ...txs]
+                          .sort((a, b) => new Date(b.time) - new Date(a.time))
+                          .slice(0, 5)
+                          .map((tx, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-2xl">
+                                    {tx.type === 'receive' ? '📥' : tx.type === 'token' ? '🪙' : '📤'}
+                                  </span>
+                                  <div>
+                                    <p className="font-semibold">
+                                      {tx.type === 'receive' ? 'Received' : tx.type === 'token' ? 'Token Sent' : 'Sent'}
+                                    </p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                      {tx.amount} {tx.symbol}
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-400 ml-9">
+                                  {tx.type === 'receive' ? `From: ${tx.from.substring(0, 12)}...` : `To: ${tx.to.substring(0, 12)}...`}
+                                </p>
+                                <p className="text-xs text-gray-400 ml-9">{tx.time}</p>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <span className={`text-xs px-3 py-1 rounded-full ${
+                                  tx.status === 'confirmed' 
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                }`}>
+                                  {tx.status}
+                                </span>
+                                <button
+                                  onClick={() => generateReceipt(tx)}
+                                  className="text-xs px-3 py-1 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition"
+                                >
+                                  📄 Receipt
+                                </button>
+                                <button
+                                  onClick={() => window.open(`${getExplorer()}/tx/${tx.hash}`, '_blank')}
+                                  className="text-xs px-3 py-1 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition"
+                                >
+                                  🔍 View
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex flex-col items-end gap-2">
-                              <span className={`text-xs px-3 py-1 rounded-full ${tx.status === 'confirmed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}`}>
-                                {tx.status}
-                              </span>
-                              <button
-                                onClick={() => generateReceipt(tx)}
-                                className="text-xs px-3 py-1 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition"
-                              >
-                                📄 Receipt
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </div>
                   )}
@@ -1332,17 +1547,18 @@
                   <h2 className="text-2xl font-bold mb-6">Send {allChains[chain].symbol}</h2>
                   
                   <div className="space-y-4">
-
-Recipient
-<input
-type="text"
-value={sendTo}
-onChange={(e) => setSendTo(e.target.value)}
-placeholder="0x..."
-className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-purple-500"
-/>
-
-<div>
+                    <div>
+                      <label className="block mb-2 font-semibold">Recipient</label>
+                      <input
+                        type="text"
+                        value={sendTo}
+                        onChange={(e) => setSendTo(e.target.value)}
+                        placeholder="0x..."
+                        className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+                    
+                    <div>
                       <label className="block mb-2 font-semibold">Amount</label>
                       <input
                         type="number"
@@ -1632,6 +1848,7 @@ className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-7
                       onClick={() => {
                         const url = `${window.location.origin}${window.location.pathname}?ref=${referralCode}`;
                         copyToClipboard(url);
+                        trackEvent('referral_link_copied');
                       }}
                       className="w-full py-3 bg-white/20 backdrop-blur rounded-xl font-semibold hover:bg-white/30 transition"
                     >
@@ -1673,6 +1890,7 @@ className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-7
                         copyToClipboard(text);
                         showMsg('✅ Copied to clipboard!');
                       }
+                      trackEvent('referral_shared');
                     }}
                     className="w-full py-4 rounded-xl premium-button text-white font-bold"
                   >
@@ -1722,11 +1940,10 @@ className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-7
                           </button>
                         </>
                       ) : (
-                        <p className="text-gray-500 text-center py-4">Click "Show" to reveal</p>
-                      )}
-                    </div>
-                    
-                    <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
+                        <p className="text-gray-500 text-center py-4">Click "Show" to reveal
+)}
+
+<div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
                       <h3 className="font-bold text-lg mb-4">Private Key</h3>
                       {showSeed ? (
                         <>
@@ -1841,6 +2058,94 @@ className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-7
                 </div>
               )}
 
+              {/* TRANSACTION APPROVAL MODAL */}
+              {pendingApproval && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                  <div className="glass-card rounded-3xl p-8 max-w-md w-full fade-in">
+                    <h3 className="text-2xl font-bold mb-4 text-center">🔐 Approve Transaction</h3>
+                    
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl mb-4">
+                      <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                        ⚠️ DApp Request
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {pendingApproval.dapp || 'Unknown DApp'} is requesting this transaction
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 mb-6">
+                      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 mb-1">To:</p>
+                        <p className="font-mono text-sm break-all">{pendingApproval.to}</p>
+                      </div>
+                      
+                      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 mb-1">Amount:</p>
+                        <p className="text-xl font-bold">{pendingApproval.amount} {chains[chain].symbol}</p>
+                      </div>
+                      
+                      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl">
+                        <p className="text-xs text-gray-500 mb-1">Estimated Gas:</p>
+                        <p className="font-semibold">{pendingApproval.gas || '~0.001'} {chains[chain].symbol}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          setPendingApproval(null);
+                          showMsg('❌ Transaction rejected');
+                          trackEvent('dapp_transaction_rejected', { dapp: pendingApproval.dapp });
+                        }}
+                        className="flex-1 py-4 rounded-xl border-2 border-red-500 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                      >
+                        ✕ Reject
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            setLoading(true);
+                            const provider = await getProviderWithRetry();
+                            const signer = new ethers.Wallet(wallet.privateKey, provider);
+                            const tx = await signer.sendTransaction({
+                              to: pendingApproval.to,
+                              value: ethers.utils.parseEther(pendingApproval.amount)
+                            });
+                            
+                            showMsg('✅ Transaction approved!');
+                            trackEvent('dapp_transaction_approved', { dapp: pendingApproval.dapp });
+                            setPendingApproval(null);
+                            
+                            setTxs([{
+                              hash: tx.hash,
+                              to: pendingApproval.to,
+                              amount: pendingApproval.amount,
+                              time: new Date().toLocaleString(),
+                              status: 'pending',
+                              type: 'send',
+                              chain: chain,
+                              symbol: chains[chain].symbol
+                            }, ...txs]);
+                            
+                            tx.wait().then(() => {
+                              setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t));
+                              refreshBalance();
+                            });
+                          } catch (e) {
+                            showMsg('❌ Transaction failed');
+                          }
+                          setLoading(false);
+                        }}
+                        disabled={loading}
+                        className="flex-1 py-4 rounded-xl premium-button text-white font-bold disabled:opacity-50"
+                      >
+                        {loading ? <span className="spinner">⟳</span> : '✓ Approve'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* FOOTER */}
               <div className="text-center mt-8 text-white/70 text-sm">
                 <p className="mb-2">Made with 💜 by BaintWallet</p>
@@ -1865,6 +2170,7 @@ className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-7
                   <span>💧 Hyperliquid</span>
                   <span>🦍 ApeChain</span>
                 </div>
+                <p className="text-xs text-white/40 mt-4">👥 Total Users: {totalUsers}</p>
               </div>
             </div>
           </div>
