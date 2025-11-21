@@ -3,434 +3,977 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaintWallet - Multi-Chain Wallet</title>
+    <title>BaintWallet - Premium Multi-Chain Wallet</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+        
         * {
+            font-family: 'Poppins', sans-serif;
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
         
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            background-size: 200% 200%;
-            animation: gradient 15s ease infinite;
-            min-height: 100vh;
-            padding: 20px;
+        body { 
+            margin: 0; 
+            padding: 0;
         }
         
-        @keyframes gradient {
+        .animated-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 200% 200%;
+            animation: gradientShift 15s ease infinite;
+        }
+        
+        @keyframes gradientShift {
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
         
-        .container {
-            max-width: 480px;
-            margin: 0 auto;
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
         }
         
-        .card {
-            background: white;
-            border-radius: 20px;
-            padding: 40px 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            text-align: center;
-            animation: fadeIn 0.5s;
+        .dark .glass-card {
+            background: rgba(20, 20, 40, 0.95);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            color: #f5f5f5;
         }
         
+        .dark { color: #f5f5f5; }
+        
+        .premium-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s;
+        }
+        
+        .premium-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .spinner { 
+            display: inline-block;
+            animation: spin 1s linear infinite; 
+        }
+        
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+        
+        .hover-lift {
+            transition: all 0.3s;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
-        .icon {
-            font-size: 72px;
-            margin-bottom: 20px;
+
+        .investor-card-bg {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+            border: 3px solid #b8860b;
+            position: relative;
+            overflow: hidden;
         }
-        
-        h1 {
-            color: #667eea;
-            font-size: 32px;
-            margin-bottom: 15px;
+
+        .investor-card-bg::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 3s infinite;
         }
-        
-        .subtitle {
-            color: #666;
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 30px;
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
         }
-        
-        .button {
-            width: 100%;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 12px;
+
+        .card-holographic {
+            background: linear-gradient(135deg, 
+                rgba(255, 215, 0, 0.8) 0%, 
+                rgba(255, 140, 0, 0.8) 25%, 
+                rgba(255, 69, 0, 0.8) 50%, 
+                rgba(255, 140, 0, 0.8) 75%, 
+                rgba(255, 215, 0, 0.8) 100%);
+            animation: holo-shift 5s ease-in-out infinite;
         }
-        
-        .button:active {
-            transform: scale(0.98);
-        }
-        
-        .button-outline {
-            background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
-        }
-        
-        .dots {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin: 25px 0;
-        }
-        
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #ddd;
-            transition: all 0.3s;
-        }
-        
-        .dot.active {
-            width: 30px;
-            border-radius: 5px;
-            background: #667eea;
-        }
-        
-        .balance {
-            font-size: 48px;
-            font-weight: bold;
-            color: #667eea;
-            margin: 20px 0;
-        }
-        
-        .wallet-address {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 12px;
-            word-break: break-all;
-            font-size: 11px;
-            font-family: monospace;
-            color: #666;
-            margin: 20px 0;
-        }
-        
-        .seasonal {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            padding: 12px;
-            border-radius: 10px;
-            font-size: 14px;
-            margin: 15px 0;
-        }
-        
-        .footer {
-            text-align: center;
-            color: white;
-            margin-top: 30px;
-            font-size: 14px;
-        }
-        
-        .loading {
-            display: inline-block;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+
+        @keyframes holo-shift {
+            0%, 100% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(20deg); }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="app"></div>
-        <div class="footer">
-            <p>Made with 💜 by BaintWallet</p>
-            <p style="font-size: 12px; margin-top: 8px; opacity: 0.8;">
-                15+ Chains • Zero Fees • Secure
-            </p>
-        </div>
-    </div>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        // INVESTOR CARD SYSTEM
+        const INVESTOR_CARD_STORAGE_KEY = 'baintwallet_investor_cards';
+        const MAX_CARDS = 1000;
 
-    <script>
-        // App State
-        const state = {
-            step: 0,
-            view: 'intro',
-            wallet: null,
-            loading: false
+        const InvestorCardManager = {
+          getTotalMinted: () => {
+            try {
+              const data = localStorage.getItem(INVESTOR_CARD_STORAGE_KEY);
+              if (!data) return 0;
+              const cards = JSON.parse(data);
+              return Object.keys(cards).length;
+            } catch (e) {
+              return 0;
+            }
+          },
+
+          hasCard: (address) => {
+            try {
+              const data = localStorage.getItem(INVESTOR_CARD_STORAGE_KEY);
+              if (!data) return false;
+              const cards = JSON.parse(data);
+              return !!cards[address.toLowerCase()];
+            } catch (e) {
+              return false;
+            }
+          },
+
+          getCard: (address) => {
+            try {
+              const data = localStorage.getItem(INVESTOR_CARD_STORAGE_KEY);
+              if (!data) return null;
+              const cards = JSON.parse(data);
+              return cards[address.toLowerCase()] || null;
+            } catch (e) {
+              return null;
+            }
+          },
+
+          mintCard: (address) => {
+            try {
+              const total = InvestorCardManager.getTotalMinted();
+              
+              if (total >= MAX_CARDS) {
+                return { success: false, reason: 'limit_reached' };
+              }
+
+              if (InvestorCardManager.hasCard(address)) {
+                return { success: false, reason: 'already_has_card', card: InvestorCardManager.getCard(address) };
+              }
+
+              const serialNumber = total + 1;
+              const card = {
+                serialNumber,
+                type: 'Investor Access Card',
+                owner: address,
+                claimTimestamp: new Date().toISOString(),
+                mintedAt: Date.now()
+              };
+
+              let cards = {};
+              const data = localStorage.getItem(INVESTOR_CARD_STORAGE_KEY);
+              if (data) {
+                cards = JSON.parse(data);
+              }
+              cards[address.toLowerCase()] = card;
+              localStorage.setItem(INVESTOR_CARD_STORAGE_KEY, JSON.stringify(cards));
+
+              return { success: true, card };
+            } catch (e) {
+              console.error('Card minting error:', e);
+              return { success: false, reason: 'error' };
+            }
+          },
+
+          getAllCards: () => {
+            try {
+              const data = localStorage.getItem(INVESTOR_CARD_STORAGE_KEY);
+              if (!data) return {};
+              return JSON.parse(data);
+            } catch (e) {
+              return {};
+            }
+          }
         };
         
-        // Introduction Slides
-        const slides = [
-            {
-                icon: '🌟',
-                title: 'Welcome to BaintWallet',
-                subtitle: 'Premium wallet with 15+ chains powered by Infura & Alchemy!'
+        function App() {
+          const [wallet, setWallet] = useState(null);
+          const [loading, setLoading] = useState(false);
+          const [message, setMessage] = useState('');
+          const [seedInput, setSeedInput] = useState('');
+          const [view, setView] = useState('intro');
+          const [introStep, setIntroStep] = useState(0);
+          const [sendTo, setSendTo] = useState('');
+          const [sendAmount, setSendAmount] = useState('');
+          const [isTestnet, setIsTestnet] = useState(true);
+          const [chain, setChain] = useState('ETH');
+          const [txs, setTxs] = useState([]);
+          const [showSeed, setShowSeed] = useState(false);
+          const [darkMode, setDarkMode] = useState(false);
+          const [prices, setPrices] = useState({});
+          const [tokens, setTokens] = useState([]);
+          const [loadingTokens, setLoadingTokens] = useState(false);
+          const [selectedToken, setSelectedToken] = useState(null);
+          const [sendTokenAmount, setSendTokenAmount] = useState('');
+          const [wcUri, setWcUri] = useState('');
+          const [wcConnected, setWcConnected] = useState(false);
+          const [dappUrl, setDappUrl] = useState('https://app.uniswap.org');
+          const [notifications, setNotifications] = useState([]);
+          const [showNotifications, setShowNotifications] = useState(false);
+          const [referralCode, setReferralCode] = useState('');
+          const [userId, setUserId] = useState('');
+          const [customNetworks, setCustomNetworks] = useState([]);
+          const [showAddNetwork, setShowAddNetwork] = useState(false);
+          const [newNetwork, setNewNetwork] = useState({ name: '', rpc: '', chainId: '', symbol: '', explorer: '' });
+          const [investorCard, setInvestorCard] = useState(null);
+          const [showCardModal, setShowCardModal] = useState(false);
+          const qrRef = useRef(null);
+          const cardQrRef = useRef(null);
+
+          const INFURA_KEY = '2eb003d772d345c48214cad05878e67c';
+          const ALCHEMY_KEY = 'RV7R38aklgHvDsNjslY6Xo9ptfJ--r2t';
+
+          const chains = {
+            ETH: {
+              name: 'Ethereum', symbol: 'ETH', icon: '⟠', color: 'from-blue-500 to-purple-600',
+              testnet: { 
+                rpc: [`https://sepolia.infura.io/v3/${INFURA_KEY}`, `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`, 'https://rpc.sepolia.org'],
+                explorer: 'https://sepolia.etherscan.io', chainId: 11155111 
+              },
+              mainnet: { 
+                rpc: [`https://mainnet.infura.io/v3/${INFURA_KEY}`, `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`, 'https://eth.llamarpc.com'],
+                explorer: 'https://etherscan.io', chainId: 1 
+              }
             },
-            {
-                icon: '🔐',
-                title: 'Your Keys, Your Crypto',
-                subtitle: 'Military-grade security. We NEVER store your keys.'
+            BNB: {
+              name: 'BNB Chain', symbol: 'BNB', icon: '◆', color: 'from-yellow-400 to-orange-500',
+              testnet: { rpc: ['https://bsc-testnet.publicnode.com', 'https://data-seed-prebsc-1-s1.binance.org:8545'], explorer: 'https://testnet.bscscan.com', chainId: 97 },
+              mainnet: { rpc: ['https://bsc-dataseed1.binance.org', 'https://bsc.publicnode.com'], explorer: 'https://bscscan.com', chainId: 56 }
             },
-            {
-                icon: '⚡',
-                title: 'Multi-Chain Magic',
-                subtitle: 'Ethereum, BNB, Polygon, Arbitrum, Base, and 10+ more chains!'
+            POLYGON: {
+              name: 'Polygon', symbol: 'MATIC', icon: '⬡', color: 'from-purple-500 to-purple-700',
+              testnet: { rpc: [`https://polygon-amoy.g.alchemy.com/v2/${ALCHEMY_KEY}`, 'https://rpc-amoy.polygon.technology'], explorer: 'https://amoy.polygonscan.com', chainId: 80002 },
+              mainnet: { rpc: [`https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`, 'https://polygon-rpc.com'], explorer: 'https://polygonscan.com', chainId: 137 }
             },
-            {
-                icon: '💎',
-                title: 'Zero Fees Forever',
-                subtitle: 'FREE sends, WalletConnect, DApp Browser, and Referrals!'
+            AVAX: {
+              name: 'Avalanche', symbol: 'AVAX', icon: '▲', color: 'from-red-500 to-pink-600',
+              testnet: { rpc: ['https://api.avax-test.network/ext/bc/C/rpc'], explorer: 'https://testnet.snowtrace.io', chainId: 43113 },
+              mainnet: { rpc: ['https://api.avax.network/ext/bc/C/rpc'], explorer: 'https://snowtrace.io', chainId: 43114 }
+            },
+            ARBITRUM: {
+              name: 'Arbitrum', symbol: 'ETH', icon: '◊', color: 'from-blue-400 to-cyan-500',
+              testnet: { rpc: [`https://arb-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`], explorer: 'https://sepolia.arbiscan.io', chainId: 421614 },
+              mainnet: { rpc: [`https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`, 'https://arb1.arbitrum.io/rpc'], explorer: 'https://arbiscan.io', chainId: 42161 }
+            },
+            OPTIMISM: {
+              name: 'Optimism', symbol: 'ETH', icon: '◉', color: 'from-red-400 to-pink-500',
+              testnet: { rpc: [`https://opt-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`], explorer: 'https://sepolia-optimism.etherscan.io', chainId: 11155420 },
+              mainnet: { rpc: [`https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`, 'https://mainnet.optimism.io'], explorer: 'https://optimistic.etherscan.io', chainId: 10 }
+            },
+            BASE: {
+              name: 'Base', symbol: 'ETH', icon: '⚡', color: 'from-blue-600 to-indigo-700',
+              testnet: { rpc: [`https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_KEY}`], explorer: 'https://sepolia.basescan.org', chainId: 84532 },
+              mainnet: { rpc: [`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}`, 'https://mainnet.base.org'], explorer: 'https://basescan.org', chainId: 8453 }
             }
-        ];
-        
-        // Get Seasonal Message
-        function getSeasonalMessage() {
-            const now = new Date();
-            const month = now.getMonth() + 1;
-            const day = now.getDate();
-            
-            if (month === 12 || (month === 1 && day <= 5)) {
-                return "Merry Christmas & Happy New Year in Advance 🎄🎁";
+          };
+
+          const TOKEN_ADDRESSES = {
+            ETH: { USDT: '0xdAC17F958D2ee523a2206206994597C13D831ec7', USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'},
+            BNB: { USDT: '0x55d398326f99059fF775485246999027B3197955', USDC: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d' },
+            POLYGON: { USDT: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', USDC: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' }
+          };
+
+          const ERC20_ABI = ["function balanceOf(address) view returns (uint256)", "function decimals() view returns (uint8)", "function symbol() view returns (string)", "function transfer(address to, uint256 amount) returns (bool)", "function name() view returns (string)"];
+
+          const introSlides = [
+            { icon: '🌟', title: 'Welcome to BaintWallet', description: 'Premium wallet with 15+ chains powered by Infura & Alchemy!', gradient: 'from-blue-500 to-purple-600' },
+            { icon: '🔐', title: 'Your Keys, Your Crypto', description: 'Military-grade security. We NEVER store your keys.', gradient: 'from-purple-500 to-pink-600' },
+            { icon: '⚡', title: 'Multi-Chain Magic', description: 'Ethereum, BNB, Polygon, Arbitrum, Base & more!', gradient: 'from-yellow-400 to-orange-500' },
+            { icon: '💎', title: 'Zero Fees Forever', description: 'FREE sends, WalletConnect, DApp Browser!', gradient: 'from-indigo-500 to-purple-600' }
+          ];
+
+          const showMsg = (msg) => { setMessage(msg); setTimeout(() => setMessage(''), 4000); };
+          const addNotification = (icon, title, msg) => {
+            const notif = { id: Date.now(), icon, title, message: msg, time: new Date().toLocaleTimeString(), read: false };
+            setNotifications(prev => [notif, ...prev.slice(0, 19)]);
+          };
+
+          const getProviderWithRetry = async () => {
+            const c = chains[chain];
+            const network = isTestnet ? c.testnet : c.mainnet;
+            const rpcList = Array.isArray(network.rpc) ? network.rpc : [network.rpc];
+            for (let i = 0; i < rpcList.length; i++) {
+              try {
+                const provider = new ethers.providers.JsonRpcProvider(rpcList[i]);
+                await provider.getNetwork();
+                return provider;
+              } catch (e) {
+                if (i === rpcList.length - 1) throw new Error(`All RPCs failed for ${chain}`);
+              }
             }
-            return "Have a productive month 💼🔥";
-        }
-        
-        // Track Analytics
-        function trackEvent(action) {
+          };
+
+          const copyToClipboard = (text) => { navigator.clipboard.writeText(text); showMsg('✅ Copied!'); };
+          const getUsdValue = () => { 
+            if (!wallet || !prices[chains[chain].symbol]) return '0.00';
+            return (parseFloat(wallet.balance) * prices[chains[chain].symbol]).toFixed(2); 
+          };
+
+          const checkAndMintCard = (walletAddress) => {
+            const result = InvestorCardManager.mintCard(walletAddress);
+            if (result.success) {
+              setInvestorCard(result.card);
+              setShowCardModal(true);
+              addNotification('🎊', 'Investor Card!', `You received card #${result.card.serialNumber}`);
+              showMsg(`🎊 Congratulations! You received Investor Card #${result.card.serialNumber}!`);
+            } else if (result.reason === 'already_has_card') {
+              setInvestorCard(result.card);
+            }
+          };
+
+          const fetchPrices = async () => {
             try {
-                const events = JSON.parse(localStorage.getItem('baintwallet_analytics') || '[]');
-                events.push({
-                    action: action,
-                    timestamp: Date.now(),
-                    date: new Date().toISOString()
-                });
-                localStorage.setItem('baintwallet_analytics', JSON.stringify(events.slice(-100)));
-                
-                // Update user count
-                const users = JSON.parse(localStorage.getItem('baintwallet_all_users') || '[]');
-                const userId = localStorage.getItem('baintwallet_user_id');
-                if (userId && !users.includes(userId)) {
-                    users.push(userId);
-                    localStorage.setItem('baintwallet_all_users', JSON.stringify(users));
-                }
-            } catch (e) {}
-        }
-        
-        // Render Function
-        function render() {
-            const app = document.getElementById('app');
-            let html = '';
-            
-            if (state.view === 'intro') {
-                const slide = slides[state.step];
-                html = `
-                    <div class="card">
-                        <div class="icon">${slide.icon}</div>
-                        <h1>${slide.title}</h1>
-                        <p class="subtitle">${slide.subtitle}</p>
-                        
-                        <div class="dots">
-                            ${slides.map((_, i) => `
-                                <div class="dot ${i === state.step ? 'active' : ''}"></div>
-                            `).join('')}
-                        </div>
-                        
-                        ${state.step < slides.length - 1 ? `
-                            <button class="button" onclick="nextSlide()">Next</button>
-                            <button class="button button-outline" onclick="skipIntro()">Skip</button>
-                        ` : `
-                            <button class="button" onclick="goToCreate()">Get Started 🚀</button>
-                        `}
-                    </div>
-                `;
+              const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,matic-network&vs_currencies=usd');
+              const data = await response.json();
+              setPrices({ ETH: data.ethereum?.usd || 2500, BNB: data.binancecoin?.usd || 300, MATIC: data['matic-network']?.usd || 0.8, USDT: 1.0, USDC: 1.0 });
+            } catch (e) { 
+              setPrices({ ETH: 2500, BNB: 300, MATIC: 0.8, USDT: 1.0, USDC: 1.0 });
             }
-            else if (state.view === 'create') {
-                html = `
-                    <div class="card">
-                        <div class="icon">✨</div>
-                        <h1>Create New Wallet</h1>
-                        <p class="subtitle">Create a secure wallet in seconds</p>
-                        <button class="button" onclick="createWallet()" ${state.loading ? 'disabled' : ''}>
-                            ${state.loading ? '<span class="loading">⟳</span> Creating...' : 'Create Wallet (FREE)'}
+          };
+
+          const loadTokenBalances = async () => {
+            if (!wallet || isTestnet) return;
+            setLoadingTokens(true);
+            const tokenAddresses = TOKEN_ADDRESSES[chain] || {};
+            const tokenList = [];
+            try {
+              const provider = await getProviderWithRetry();
+              for (const [symbol, address] of Object.entries(tokenAddresses)) {
+                try {
+                  const contract = new ethers.Contract(address, ERC20_ABI, provider);
+                  const [balance, decimals, name] = await Promise.all([contract.balanceOf(wallet.address), contract.decimals(), contract.name()]);
+                  const formattedBalance = ethers.utils.formatUnits(balance, decimals);
+                  if (parseFloat(formattedBalance) > 0) { 
+                    tokenList.push({ symbol, name, address, balance: formattedBalance, decimals }); 
+                  }
+                } catch (e) { console.error(`Error loading ${symbol}:`, e.message); }
+              }
+              setTokens(tokenList);
+            } catch (e) { console.error('Token loading error:', e); }
+            setLoadingTokens(false);
+          };
+
+          const createWallet = async () => {
+            setLoading(true);
+            try {
+              const w = ethers.Wallet.createRandom();
+              const provider = await getProviderWithRetry();
+              const balance = await provider.getBalance(w.address);
+              setWallet({ address: w.address, privateKey: w.privateKey, mnemonic: w.mnemonic.phrase, balance: ethers.utils.formatEther(balance) });
+              checkAndMintCard(w.address);
+              showMsg('✅ Wallet created!');
+              addNotification('✨', 'Success', 'Wallet ready!');
+              setView('wallet');
+              fetchPrices();
+            } catch (e) { showMsg('❌ Error: ' + e.message); }
+            setLoading(false);
+          };
+
+          const importWallet = async () => {
+            if (!seedInput.trim()) { showMsg('❌ Enter seed phrase'); return; }
+            setLoading(true);
+            try {
+              const cleanSeed = seedInput.trim().toLowerCase().replace(/\s+/g, ' ');
+              const words = cleanSeed.split(' ');
+              if (words.length !== 12 && words.length !== 24) {
+                showMsg(`❌ Must be 12 or 24 words`);
+                setLoading(false);
+                return;
+              }
+              const w = ethers.Wallet.fromMnemonic(cleanSeed);
+              const provider = await getProviderWithRetry();
+              const balance = await provider.getBalance(w.address);
+              setWallet({ address: w.address, privateKey: w.privateKey, mnemonic: w.mnemonic.phrase, balance: ethers.utils.formatEther(balance) });
+              const existingCard = InvestorCardManager.getCard(w.address);
+              if (existingCard) {
+                setInvestorCard(existingCard);
+              } else {
+                checkAndMintCard(w.address);
+              }
+              showMsg('✅ Imported!');
+              addNotification('📥', 'Imported', 'Wallet loaded');
+              setSeedInput('');
+              setView('wallet');
+              fetchPrices();
+            } catch (e) { showMsg('❌ Invalid seed'); }
+            setLoading(false);
+          };
+
+          const refreshBalance = async () => {
+            if (!wallet) return;
+            setLoading(true);
+            try {
+              const provider = await getProviderWithRetry();
+              const balance = await provider.getBalance(wallet.address);
+              setWallet({...wallet, balance: ethers.utils.formatEther(balance)});
+              fetchPrices();
+              if (!isTestnet) loadTokenBalances();
+              showMsg('✅ Refreshed!');
+            } catch (e) { showMsg('⚠️ Network error'); }
+            setLoading(false);
+          };
+
+          const send = async () => {
+            if (!sendTo || !sendAmount) { showMsg('❌ Fill all fields'); return; }
+            if (!ethers.utils.isAddress(sendTo)) { showMsg('❌ Invalid address'); return; }
+            setLoading(true);
+            try {
+              const provider = await getProviderWithRetry();
+              const signer = new ethers.Wallet(wallet.privateKey, provider);
+              const tx = await signer.sendTransaction({ to: sendTo, value: ethers.utils.parseEther(sendAmount) });
+              showMsg('✅ Sent! (FREE)');
+              addNotification('📤', 'Sent', `${sendAmount} ${chains[chain].symbol}`);
+              setTxs([{ hash: tx.hash, to: sendTo, amount: sendAmount, time: new Date().toLocaleString(), status: 'pending', type: 'native', chain: chain, symbol: chains[chain].symbol }, ...txs]);
+              tx.wait().then(() => { 
+                setTxs(prev => prev.map(t => t.hash === tx.hash ? {...t, status: 'confirmed'} : t)); 
+                showMsg('✅ Confirmed!'); 
+                refreshBalance(); 
+              });
+              setSendTo(''); setSendAmount(''); setView('wallet');
+            } catch (e) { showMsg('❌ ' + (e.reason || e.message)); }
+            setLoading(false);
+          };
+
+          useEffect(() => {
+            let uid = localStorage.getItem('baintwallet_user_id');
+            if (!uid) {
+              uid = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+              localStorage.setItem('baintwallet_user_id', uid);
+            }
+            setUserId(uid);
+            setReferralCode('BAINT-' + uid.slice(-6).toUpperCase());
+          }, []);
+
+          useEffect(() => {
+            if (view === 'receive' && qrRef.current && wallet) {
+              qrRef.current.innerHTML = '';
+              try { new QRCode(qrRef.current, { text: wallet.address, width: 200, height: 200}); } catch (e) {}
+            }
+          }, [view, wallet]);
+
+          useEffect(() => {
+            if (view === 'collectibles' && cardQrRef.current && investorCard) {
+              cardQrRef.current.innerHTML = '';
+              try {
+                const cardData = `BaintWallet Investor Card #${investorCard.serialNumber}\nOwner: ${investorCard.owner}\nClaimed: ${new Date(investorCard.claimTimestamp).toLocaleDateString()}`;
+                new QRCode(cardQrRef.current, { text: cardData, width: 150, height: 150});
+              } catch (e) {}
+            }
+          }, [view, investorCard]);
+
+          useEffect(() => { if (wallet) { refreshBalance(); }}, [chain, isTestnet]);
+          useEffect(() => { if (wallet && !isTestnet) { loadTokenBalances(); }}, [wallet, chain, isTestnet]);
+
+          const allChains = { ...chains, ...customNetworks.reduce((acc, net) => ({ ...acc, [net.id]: net }), {}) };
+
+          return (
+            <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
+              <div className="animated-bg min-h-screen p-4 md:p-8">
+                <div className="max-w-md mx-auto">
+                  
+                  <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-3xl font-bold text-white">BaintWallet</h1>
+                    <div className="flex gap-2">
+                      <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-3 glass-card rounded-xl transition hover:shadow-lg">
+                        <span className="text-2xl">🔔</span>
+                        {notifications.filter(n => !n.read).length > 0 && (<div className="notification-badge">{notifications.filter(n => !n.read).length}</div>)}
+                      </button>
+                      <button onClick={() => setDarkMode(!darkMode)} className="p-3 glass-card rounded-xl transition hover:shadow-lg">
+                        <span className="text-2xl">{darkMode ? '☀️' : '🌙'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {showCardModal && investorCard && (
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 fade-in">
+                      <div className="glass-card rounded-3xl p-8 max-w-md w-full text-center">
+                        <div className="text-6xl mb-4">🎊</div>
+                        <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-transparent bg-clip-text">Congratulations!</h2>
+                        <p className="text-lg mb-6">You're one of the first 1000 investors!</p>
+                        <div className="investor-card-bg rounded-2xl p-6 mb-6 relative">
+                          <div className="relative z-10">
+                            <p className="text-sm font-semibold text-gray-800 mb-2">INVESTOR ACCESS CARD</p>
+                            <p className="text-4xl font-bold text-gray-900 mb-4">#{investorCard.serialNumber}</p>
+                            <p className="text-xs text-gray-700">Serial: {investorCard.serialNumber} of 1000</p>
+                            <p className="text-xs text-gray-700 mt-2">Claimed: {new Date(investorCard.claimTimestamp).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">This limited-edition card proves you're an early adopter of BaintWallet!</p>
+                        <button onClick={() => setShowCardModal(false)} className="w-full py-4 rounded-xl premium-button text-white font-bold">Viewin Collectibles
                         </button>
+                      </div>
                     </div>
-                `;
-            }
-            else if (state.view === 'wallet' && state.wallet) {
-                html = `
-                    <div class="card">
-                        <div class="icon">✅</div>
-                        <h1>Wallet Created!</h1>
-                        
-                        <div class="balance">${state.wallet.balance} ETH</div>
-                        
-                        <div class="seasonal">${getSeasonalMessage()}</div>
-                        
-                        <div class="wallet-address">
-                            <strong style="color: #667eea;">Address:</strong><br>
-                            ${state.wallet.address}
+                  )}
+
+                  {showNotifications && (
+                    <div className="glass-card rounded-2xl p-4 mb-4 fade-in">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold">Notifications</h3>
+                        <button onClick={() => { setNotifications([]); setShowNotifications(false); }} className="text-sm text-purple-600 dark:text-purple-400">Clear All</button>
+                      </div>
+                      {notifications.length === 0 ? (
+                        <p className="text-gray-500 text-center py-4">No notifications</p>
+                      ) : (
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                          {notifications.map(notif => (
+                            <div key={notif.id} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                              <div className="flex items-start gap-3">
+                                <span className="text-2xl">{notif.icon}</span>
+                                <div className="flex-1">
+                                  <p className="font-semibold">{notif.title}</p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{notif.message}</p>
+                                  <p className="text-xs text-gray-400 mt-1">{notif.time}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        
-                        <button class="button" onclick="copyAddress()">📋 Copy Address</button>
-                        <button class="button" onclick="showSeed()">🔐 View Seed Phrase</button>
-                        <button class="button button-outline" onclick="reset()">🔄 Reset Wallet</button>
+                      )}
                     </div>
-                `;
-            }
-            else if (state.view === 'seed' && state.wallet) {
-                html = `
-                    <div class="card">
-                        <div class="icon">🔐</div>
-                        <h1>Seed Phrase</h1>
-                        
-                        <div style="background: #ffebee; padding: 15px; border-radius: 12px; margin: 20px 0;">
-                            <p style="color: #c62828; font-weight: bold; font-size: 14px;">⚠️ NEVER share this!</p>
-                            <p style="color: #d32f2f; font-size: 12px; margin-top: 5px;">
-                                Anyone with this phrase can access your funds
-                            </p>
-                        </div>
-                        
-                        <div class="wallet-address" style="text-align: left;">
-                            ${state.wallet.mnemonic}
-                        </div>
-                        
-                        <button class="button" onclick="copySeed()">📋 Copy Seed Phrase</button>
-                        <button class="button button-outline" onclick="backToWallet()">← Back to Wallet</button>
+                  )}
+
+                  {message && (<div className="glass-card rounded-2xl p-4 mb-4 text-center font-semibold fade-in">{message}</div>)}
+
+                  {view === 'intro' && (
+                    <div className="glass-card rounded-3xl p-8 hover-lift fade-in">
+                      <div className="text-6xl mb-6 text-center">{introSlides[introStep].icon}</div>
+                      <h2 className={`text-3xl font-bold mb-4 text-center bg-gradient-to-r ${introSlides[introStep].gradient} text-transparent bg-clip-text`}>{introSlides[introStep].title}</h2>
+                      <p className="text-gray-600 dark:text-gray-300 text-center mb-8 leading-relaxed">{introSlides[introStep].description}</p>
+                      <div className="flex gap-2 justify-center mb-6">
+                        {introSlides.map((_, i) => (<div key={i} className={`h-3 rounded-full transition-all ${i === introStep ? 'w-8 bg-purple-600' : 'w-3 bg-gray-300'}`} />))}
+                      </div>
+                      <div className="flex gap-3">
+                        {introStep < introSlides.length - 1 ? (
+                          <>
+                            <button onClick={() => setView('create')} className="flex-1 py-4 rounded-xl border-2 border-purple-500 text-purple-600 dark:text-purple-400 font-semibold hover:bg-purple-50 dark:hover:bg-purple-900/20">Skip</button>
+                            <button onClick={() => setIntroStep(introStep + 1)} className="flex-1 py-4 rounded-xl premium-button text-white font-bold">Next</button>
+                          </>
+                        ) : (
+                          <button onClick={() => setView('create')} className="w-full py-4 rounded-xl premium-button text-white font-bold text-lg">Get Started 🚀</button>
+                        )}
+                      </div>
                     </div>
-                `;
-            }
-            
-            app.innerHTML = html;
+                  )}
+
+                  {view === 'create' && (
+                    <div className="space-y-4 fade-in">
+                      {InvestorCardManager.getTotalMinted() < MAX_CARDS && (
+                        <div className="glass-card rounded-2xl p-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
+                          <p className="font-bold text-center">🎊 Only {MAX_CARDS - InvestorCardManager.getTotalMinted()} Investor Cards left!</p>
+                          <p className="text-sm text-center mt-1">Create or import wallet to claim yours</p>
+                        </div>
+                      )}
+                      <div className="glass-card rounded-3xl p-8 hover-lift">
+                        <div className="text-6xl text-center mb-6">✨</div>
+                        <h2 className="text-2xl font-bold text-center mb-6">Create New Wallet</h2>
+                        <button onClick={createWallet} disabled={loading} className="w-full py-4 rounded-xl premium-button text-white font-bold text-lg disabled:opacity-50">
+                          {loading ? <span className="spinner">⟳</span> : 'Create Wallet (FREE)'}
+                        </button>
+                      </div>
+                      <div className="glass-card rounded-3xl p-8 hover-lift">
+                        <div className="text-6xl text-center mb-6">🔑</div>
+                        <h2 className="text-2xl font-bold text-center mb-6">Import Wallet</h2>
+                        <textarea value={seedInput} onChange={(e) => setSeedInput(e.target.value)} placeholder="Enter 12 or 24 word seed phrase..." className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-800 mb-4 min-h-[120px] focus:outline-none focus:border-purple-500" />
+                        <button onClick={importWallet} disabled={loading} className="w-full py-4 rounded-xl premium-button text-white font-bold text-lg disabled:opacity-50">
+                          {loading ? <span className="spinner">⟳</span> : 'Import Wallet (FREE)'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {view === 'wallet' && wallet && (
+                    <div className="space-y-4 fade-in">
+                      {investorCard && (
+                        <div className="glass-card rounded-2xl p-4 cursor-pointer hover:shadow-xl transition" onClick={() => setView('collectibles')}>
+                          <div className="flex items-center gap-3">
+                            <div className="text-4xl">🎊</div>
+                            <div className="flex-1">
+                              <p className="font-bold">Investor Card #{investorCard.serialNumber}</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Tap to view your collectible</p>
+                            </div>
+                            <div className="text-2xl">→</div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="glass-card rounded-2xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="font-semibold">Network</label>
+                        </div>
+                        <select value={chain} onChange={(e) => setChain(e.target.value)} className="w-full p-3 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-800 font-semibold mb-3 focus:outline-none focus:border-purple-500">
+                          {Object.entries(allChains).map(([key, c]) => (<option key={key} value={key}>{c.icon} {c.name}</option>))}
+                        </select>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setIsTestnet(true)} className={`flex-1 py-2 rounded-lg font-semibold transition ${isTestnet ? 'bg-orange-500 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>🧪 Testnet</button>
+                          <button onClick={() => setIsTestnet(false)} className={`flex-1 py-2 rounded-lg font-semibold transition ${!isTestnet ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 dark:text-gray-300'}`}>💎 Mainnet</button>
+                        </div>
+                      </div>
+
+                      <div className={`glass-card rounded-3xl p-8 hover-lift bg-gradient-to-br ${allChains[chain].color}`}>
+                        <p className="text-white/80 mb-2 font-semibold">Total Balance</p>
+                        <h2 className="text-5xl font-bold text-white mb-2">{parseFloat(wallet.balance).toFixed(4)} {allChains[chain].symbol}</h2>
+                        <p className="text-white/90 text-xl font-semibold">≈ ${getUsdValue()} USD</p>
+                        <div className="mt-6 flex gap-2">
+                          <button onClick={() => copyToClipboard(wallet.address)} className="flex-1 py-3 bg-white/20 backdrop-blur rounded-xl text-white font-semibold hover:bg-white/30 transition">📋 Copy</button>
+                          <button onClick={refreshBalance} disabled={loading} className="flex-1 py-3 bg-white/20 backdrop-blur rounded-xl text-white font-semibold hover:bg-white/30 transition disabled:opacity-50">
+                            {loading ? <span className="spinner text-white">⟳</span> : '🔄 Refresh'}
+                          </button>
+                        </div>
+                        <div className="mt-4 text-xs text-white/70 break-all bg-black/20 p-2 rounded">{wallet.address}</div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <button onClick={() => setView('send')} className="glass-card p-6 rounded-2xl hover-lift text-center transition">
+                          <div className="text-4xl mb-2">📤</div>
+                          <p className="font-bold text-sm">Send</p>
+                        </button>
+                        <button onClick={() => setView('receive')} className="glass-card p-6 rounded-2xl hover-lift text-center transition">
+                          <div className="text-4xl mb-2">📥</div>
+                          <p className="font-bold text-sm">Receive</p>
+                        </button>
+                        <button onClick={() => setView('tokens')} className="glass-card p-6 rounded-2xl hover-lift text-center transition">
+                          <div className="text-4xl mb-2">🪙</div>
+                          <p className="font-bold text-sm">Tokens</p>
+                        </button>
+                        <button onClick={() => setView('collectibles')} className="glass-card p-6 rounded-2xl hover-lift text-center transition relative">
+                          <div className="text-4xl mb-2">🎨</div>
+                          <p className="font-bold text-sm">Collectibles</p>
+                          {investorCard && (<div className="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full"></div>)}
+                        </button>
+                        <button onClick={() => setView('dapp')} className="glass-card p-6 rounded-2xl hover-lift text-center transition">
+                          <div className="text-4xl mb-2">🌐</div>
+                          <p className="font-bold text-sm">Browser</p>
+                        </button>
+                        <button onClick={() => setView('security')} className="glass-card p-6 rounded-2xl hover-lift text-center transition">
+                          <div className="text-4xl mb-2">🔐</div>
+                          <p className="font-bold text-sm">Security</p>
+                        </button>
+                      </div>
+
+                      {txs.length > 0 && (
+                        <div className="glass-card rounded-2xl p-6">
+                          <h3 className="text-xl font-bold mb-4">Recent Transactions</h3>
+                          <div className="space-y-3">
+                            {txs.slice(0, 3).map((tx, i) => (
+                              <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                                <div className="flex-1">
+                                  <p className="font-semibold">{tx.type === 'token' ? '🪙' : '📤'} {tx.type === 'token' ? 'Token' : 'Sent'}</p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{tx.amount} {tx.symbol}</p>
+                                  <p className="text-xs text-gray-400">{tx.time}</p>
+                                </div>
+                                <span className={`text-xs px-3 py-1 rounded-full ${tx.status === 'confirmed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}`}>{tx.status}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {view === 'collectibles' && (
+                    <div className="glass-card rounded-3xl p-8 fade-in">
+                      <button onClick={() => setView('wallet')} className="mb-6 text-purple-600 dark:text-purple-400 font-semibold hover:underline">← Back</button>
+                      <h2 className="text-2xl font-bold mb-6">🎨 Collectibles</h2>
+                      {investorCard ? (
+                        <div className="space-y-6">
+                          <div className="investor-card-bg rounded-2xl p-8 text-center">
+                            <div className="relative z-10">
+                              <div className="text-6xl mb-4">💎</div>
+                              <h3 className="text-2xl font-bold text-gray-900 mb-2">INVESTOR ACCESS CARD</h3>
+                              <p className="text-sm text-gray-700 mb-4">{investorCard.type}</p>
+                              <div className="bg-black/10 rounded-xl p-4 mb-4">
+                                <p className="text-5xl font-bold text-gray-900 mb-2">#{investorCard.serialNumber}</p>
+                                <p className="text-sm text-gray-800 font-semibold">Limited Edition</p>
+                                <p className="text-xs text-gray-700">Serial {investorCard.serialNumber} of {MAX_CARDS}</p>
+                              </div>
+                              <div className="space-y-2 text-left bg-white/50 rounded-xl p-4">
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-semibold text-gray-700">Owner:</span>
+                                  <span className="text-gray-900 font-mono text-xs">{investorCard.owner.slice(0, 6)}...{investorCard.owner.slice(-4)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-semibold text-gray-700">Claimed:</span>
+                                  <span className="text-gray-900">{new Date(investorCard.claimTimestamp).toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="font-semibold text-gray-700">Status:</span>
+                                  <span className="text-green-700 font-bold">✅ Active</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-6">
+                            <h4 className="font-bold text-lg mb-4 flex items-center gap-2"><span>🌟</span> You are early — {investorCard.serialNumber} out of {MAX_CARDS} investors</h4>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">This limited-edition on-chain identity collectible proves you're one of the first {MAX_CARDS} users to join BaintWallet. Only early adopters receive this exclusive investor access card.</p>
+                            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 text-center">
+                              <p className="text-sm font-semibold mb-3">Card Verification QR</p>
+                              <div className="bg-white p-4 rounded-xl inline-block" ref={cardQrRef}></div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
+                            <h4 className="font-bold mb-3">💎 Investor Benefits:</h4>
+                            <ul className="space-y-2 text-sm">
+                              <li>✅ Proof of early adoption</li>
+                              <li>✅ Unique on-chain identity</li>
+                              <li>✅ Limited to first {MAX_CARDS} users</li>
+                              <li>✅ Permanent ownership</li>
+                              <li>✅ Future exclusive features access</li>
+                            </ul>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <button onClick={() => {
+                              const cardText = `BaintWallet Investor Card #${investorCard.serialNumber}\n${MAX_CARDS} Limited Edition\nOwner: ${investorCard.owner}\nClaimed: ${new Date(investorCard.claimTimestamp).toLocaleDateString()}`;
+                              copyToClipboard(cardText);
+                            }} className="py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition">📋 Copy Details</button>
+                            <button onClick={() => {
+                              const shareText = `I'm one of the first ${MAX_CARDS} investors in BaintWallet! 🎊\n\nMy Investor Card: #${investorCard.serialNumber}\nJoin now: ${window.location.origin}`;
+                              if (navigator.share) { navigator.share({ title: 'BaintWallet Investor', text: shareText }); } else { copyToClipboard(shareText); showMsg('✅ Copied!'); }
+                            }} className="py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-xl font-semibold hover:shadow-lg transition">📤 Share Card</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <p className="text-6xl mb-4">📭</p>
+                          <p className="text-xl font-bold mb-2">No Collectibles Yet</p>
+                          <p className="text-gray-600 dark:text-gray-400 mb-6">{InvestorCardManager.getTotalMinted() >= MAX_CARDS ? 'All 1000 Investor Cards have been claimed!' : 'Create a new wallet to claim your Investor Card'}</p>
+                          {InvestorCardManager.getTotalMinted() < MAX_CARDS && (
+                            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-xl">
+                              <p className="font-semibold text-yellow-800 dark:text-yellow-200">⚡ Only {MAX_CARDS - InvestorCardManager.getTotalMinted()} cards remaining!</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {view === 'send' && (
+                    <div className="glass-card rounded-3xl p-8 fade-in">
+                      <button onClick={() => setView('wallet')} className="mb-6 text-purple-600 dark:text-purple-400 font-semibold hover:underline">← Back</button>
+                      <h2 className="text-2xl font-bold mb-6">Send {allChains[chain].symbol}</h2>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block mb-2 font-semibold">Recipient</label>
+                          <input type="text" value={sendTo} onChange={(e) => setSendTo(e.target.value)} placeholder="0x..." className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-purple-500" />
+                        </div>
+                        <div>
+                          <label className="block mb-2 font-semibold">Amount</label>
+                          <input type="number" step="0.000001" value={sendAmount} onChange={(e) => setSendAmount(e.target.value)} placeholder="0.0" className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-purple-500" />
+                          <p className="text-sm text-gray-500 mt-2">Balance: {wallet.balance}</p>
+                        </div>
+                        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl">
+                          <p className="text-green-800 dark:text-green-200 font-semibold">✅ Platform Fee: FREE</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">You only pay network gas fees</p>
+                        </div>
+                        <button onClick={send} disabled={loading} className="w-full py-4 rounded-xl premium-button text-white font-bold text-lg disabled:opacity-50">
+                          {loading ? <span className="spinner">⟳</span> : 'Send Now (FREE)'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {view === 'receive' && (
+                    <div className="glass-card rounded-3xl p-8 text-center fade-in">
+                      <button onClick={() => setView('wallet')} className="mb-6 text-purple-600 dark:text-purple-400 font-semibold float-left hover:underline">← Back</button>
+                      <div className="clear-both"></div>
+                      <h2 className="text-2xl font-bold mb-6">Receive {allChains[chain].symbol}</h2>
+                      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl inline-block mb-6">
+                        <div ref={qrRef}></div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl mb-4 break-all">
+                        <p className="font-mono text-sm">{wallet.address}</p>
+                      </div>
+                      <button onClick={() => copyToClipboard(wallet.address)} className="w-full py-4 rounded-xl premium-button text-white font-bold">📋 Copy Address</button>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">Only send {allChains[chain].symbol} to this address on {allChains[chain].name}</p>
+                    </div>
+                  )}
+
+                  {view === 'tokens' && (
+                    <div className="glass-card rounded-3xl p-8 fade-in">
+                      <button onClick={() => setView('wallet')} className="mb-6 text-purple-600 dark:text-purple-400 font-semibold hover:underline">← Back</button>
+                      <h2 className="text-2xl font-bold mb-6">USDT & USDC</h2>
+                      {isTestnet ? (
+                        <div className="text-center py-8">
+                          <p className="text-6xl mb-4">⚠️</p>
+                          <p className="text-gray-600 dark:text-gray-400">Tokens only available on mainnet</p>
+                        </div>
+                      ) : loadingTokens ? (
+                        <div className="text-center py-8">
+                          <span className="spinner text-6xl">⟳</span>
+                          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading tokens...</p>
+                        </div>
+                      ) : tokens.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-6xl mb-4">💰</p>
+                          <p className="text-gray-600 dark:text-gray-400">No tokens found</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {tokens.map((token, i) => (
+                            <div key={i} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                              <div>
+                                <p className="font-bold text-lg">{token.symbol}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{token.name}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold">{parseFloat(token.balance).toFixed(4)}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">${(parseFloat(token.balance) * (prices[token.symbol] || 1)).toFixed(2)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {view === 'dapp' && (
+                    <div className="glass-card rounded-3xl p-8 fade-in">
+                      <button onClick={() => setView('wallet')} className="mb-6 text-purple-600 dark:text-purple-400 font-semibold hover:underline">← Back</button>
+                      <h2 className="text-2xl font-bold mb-6">🌐 DApp Browser</h2>
+                      <div className="mb-4">
+                        <input type="text" value={dappUrl} onChange={(e) => setDappUrl(e.target.value)} placeholder="https://..." className="w-full p-4 rounded-xl border-2 border-purple-300 dark:border-purple-700 bg-white dark:bg-gray-800 focus:outline-none focus:border-purple-500" />
+                      </div>
+                      <div className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border-2 border-purple-300 dark:border-purple-700 mb-4" style={{ height: '500px' }}>
+                        <iframe src={dappUrl} className="w-full h-full" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" title="DApp Browser" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button onClick={() => setDappUrl('https://app.uniswap.org')} className="p-3 bg-pink-500 text-white rounded-xl font-semibold hover:bg-pink-600 transition">🦄 Uniswap</button>
+                        <button onClick={() => setDappUrl('https://app.aave.com')} className="p-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition">👻 Aave</button>
+                        <button onClick={() => setDappUrl('https://opensea.io')} className="p-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition">🌊 OpenSea</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {view === 'security' && (
+                    <div className="glass-card rounded-3xl p-8 fade-in">
+                      <button onClick={() => setView('wallet')} className="mb-6 text-purple-600 dark:text-purple-400 font-semibold hover:underline">← Back</button>
+                      <h2 className="text-2xl font-bold mb-6">🔐 Security</h2>
+                      <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-xl mb-6">
+                        <p className="text-red-800 dark:text-red-200 font-semibold mb-2">⚠️ NEVER share these!</p>
+                        <p className="text-sm text-red-700 dark:text-red-300">Anyone with access has FULL CONTROL of your funds.</p>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-lg">Seed Phrase</h3>
+                            <button onClick={() => setShowSeed(!showSeed)} className="text-purple-600 dark:text-purple-400 font-semibold hover:underline">{showSeed ? '🙈 Hide' : '👁️ Show'}</button>
+                          </div>
+                          {showSeed ? (
+                            <>
+                              <div className="grid grid-cols-3 gap-2 mb-4">
+                                {wallet.mnemonic.split(' ').map((word, i) => (
+                                  <div key={i} className="bg-white dark:bg-gray-700 p-2 rounded text-center">
+                                    <span className="text-xs text-gray-500">{i + 1}.</span>
+                                    <p className="font-mono font-semibold text-sm">{word}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              <button onClick={() => copyToClipboard(wallet.mnemonic)} className="w-full py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition">📋 Copy Seed Phrase</button>
+                            </>
+                          ) : (
+                            <p className="text-gray-500 text-center py-4">Click "Show" to reveal</p>
+                          )}
+                        </div>
+                        <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-xl"><h3 className="font-bold text-lg mb-4">Private Key</h3>
+                          {showSeed ? (
+                            <>
+                              <p className="font-mono text-sm break-all bg-white dark:bg-gray-700 p-3 rounded mb-4">{wallet.privateKey}</p>
+                              <button onClick={() => copyToClipboard(wallet.privateKey)} className="w-full py-3 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition">📋 Copy Private Key</button>
+                            </>
+                          ) : (
+                            <p className="text-gray-500 text-center py-4">Show seed phrase first</p>
+                          )}
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl">
+                          <h3 className="font-bold mb-3">💡 Security Tips:</h3>
+                          <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                            <li>✅ Write seed phrase on paper</li>
+                            <li>✅ Store in secure location (safe, vault)</li>
+                            <li>✅ Never take screenshots</li>
+                            <li>✅ Never share with anyone</li>
+                            <li>✅ Make multiple backups</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-center mt-8 text-white/70 text-sm">
+                    <p className="mb-2">Made with 💜 by BaintWallet</p>
+                    <p className="mb-4 font-semibold">Multi-Chain • USDT/USDC • DApp Browser • Zero Fees</p>
+                    <p className="text-xs text-white/50 mb-2">Powered by Infura & Alchemy APIs</p>
+                    {InvestorCardManager.getTotalMinted() < MAX_CARDS && (
+                      <p className="text-xs text-yellow-300 font-semibold mb-2">🎊 {MAX_CARDS - InvestorCardManager.getTotalMinted()} Investor Cards Remaining</p>
+                    )}
+                    <div className="flex justify-center gap-3 flex-wrap text-xs">
+                      <span>⟠ ETH</span>
+                      <span>◆ BNB</span>
+                      <span>⬡ Polygon</span>
+                      <span>▲ Avalanche</span>
+                      <span>◊ Arbitrum</span>
+                      <span>◉ Optimism</span>
+                      <span>⚡ Base</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
         }
         
-        // Navigation Functions
-        function nextSlide() {
-            if (state.step < slides.length - 1) {
-                state.step++;
-                trackEvent('intro_next');
-                render();
-            }
-        }
-        
-        function skipIntro() {
-            trackEvent('intro_skipped');
-            goToCreate();
-        }
-        
-        function goToCreate() {
-            state.view = 'create';
-            trackEvent('navigate_create');
-            render();
-        }
-        
-        function backToWallet() {
-            state.view = 'wallet';
-            render();
-        }
-        
-        function showSeed() {
-            state.view = 'seed';
-            trackEvent('view_seed');
-            render();
-        }
-        
-        // Wallet Functions
-        function createWallet() {
-            state.loading = true;
-            render();
-            
-            setTimeout(() => {
-                // Generate random wallet
-                const address = '0x' + Array(40).fill(0)
-                    .map(() => Math.floor(Math.random() * 16).toString(16))
-                    .join('');
-                
-                const words = ['abandon', 'ability', 'able', 'about', 'above', 'absent', 
-                              'absorb', 'abstract', 'absurd', 'abuse', 'access', 'accident'];
-                const mnemonic = words.sort(() => Math.random() - 0.5).join(' ');
-                
-                state.wallet = {
-                    address: address,
-                    balance: '0.0000',
-                    mnemonic: mnemonic
-                };
-                
-                // Track user creation
-                let userId = localStorage.getItem('baintwallet_user_id');
-                if (!userId) {
-                    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                    localStorage.setItem('baintwallet_user_id', userId);
-                }
-                
-                trackEvent('wallet_created');
-                
-                state.loading = false;
-                state.view = 'wallet';
-                render();
-            }, 1500);
-        }
-        
-        function copyAddress() {
-            copyToClipboard(state.wallet.address);
-            alert('✅ Address copied to clipboard!');
-            trackEvent('copy_address');
-        }
-        
-        function copySeed() {
-            copyToClipboard(state.wallet.mnemonic);
-            alert('✅ Seed phrase copied to clipboard!');
-            trackEvent('copy_seed');
-        }
-        
-        function copyToClipboard(text) {
-            const temp = document.createElement('textarea');
-            temp.value = text;
-            temp.style.position = 'fixed';
-            temp.style.left = '-9999px';
-            document.body.appendChild(temp);
-            temp.select();
-            try {
-                document.execCommand('copy');
-            } catch (e) {
-                console.error('Copy failed:', e);
-            }
-            document.body.removeChild(temp);
-        }
-        
-        function reset() {
-            if (confirm('Are you sure you want to reset? This will clear your wallet.')) {
-                state.wallet = null;
-                state.view = 'intro';
-                state.step = 0;
-                trackEvent('wallet_reset');
-                render();
-            }
-        }
-        
-        // Initialize
-        function init() {
-            let userId = localStorage.getItem('baintwallet_user_id');
-            if (!userId) {
-                userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('baintwallet_user_id', userId);
-            }
-            
-            trackEvent('app_opened');
-            render();
-        }
-        
-        init();
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
