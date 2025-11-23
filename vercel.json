@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.js"
+    }
+  ],
+  "env": {
+    "INFURA_KEY": "2eb003d772d345c48214cad05878e67c",
+    "ALCHEMY_KEY": "RV7R38aklgHvDsNjslY6Xo9ptfJ--r2t"
+  }
+}
